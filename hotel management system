@@ -1,0 +1,177 @@
+import tkinter as tk
+from tkinter import messagebox, ttk
+from datetime import datetime, timedelta
+
+class HotelManagementSystem:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Advanced Hotel Management System")
+        self.root.geometry("900x750")
+
+        # Data storage
+        self.rooms = {101: 'Single', 102: 'Single', 201: 'Double', 202: 'Double', 301: 'Suite', 302: 'Suite'}
+        self.room_rates = {'Single': 100, 'Double': 150, 'Suite': 200}
+        self.bookings = []
+
+        # Variables
+        self.customer_name = tk.StringVar()
+        self.phone = tk.StringVar()
+        self.room_type = tk.StringVar()
+        self.num_nights = tk.IntVar()
+        self.check_in_date = tk.StringVar()
+
+        # Title
+        title = tk.Label(self.root, text="Hotel Management System", font=("Arial", 28, "bold"))
+        title.pack(pady=20)
+
+        # Form Frame
+        form_frame = tk.Frame(self.root)
+        form_frame.pack(pady=20)
+
+        tk.Label(form_frame, text="Customer Name:", font=("Arial", 14)).grid(row=0, column=0, padx=10, pady=10)
+        tk.Entry(form_frame, textvariable=self.customer_name, font=("Arial", 14)).grid(row=0, column=1)
+
+        tk.Label(form_frame, text="Phone Number:", font=("Arial", 14)).grid(row=1, column=0, padx=10, pady=10)
+        tk.Entry(form_frame, textvariable=self.phone, font=("Arial", 14)).grid(row=1, column=1)
+
+        tk.Label(form_frame, text="Room Type:", font=("Arial", 14)).grid(row=2, column=0, padx=10, pady=10)
+        ttk.Combobox(form_frame, textvariable=self.room_type, values=["Single", "Double", "Suite"], font=("Arial", 14)).grid(row=2, column=1)
+
+        tk.Label(form_frame, text="Number of Nights:", font=("Arial", 14)).grid(row=3, column=0, padx=10, pady=10)
+        tk.Entry(form_frame, textvariable=self.num_nights, font=("Arial", 14)).grid(row=3, column=1)
+
+        tk.Label(form_frame, text="Check-in Date (YYYY-MM-DD):", font=("Arial", 14)).grid(row=4, column=0, padx=10, pady=10)
+        tk.Entry(form_frame, textvariable=self.check_in_date, font=("Arial", 14)).grid(row=4, column=1)
+
+        # Button Frame
+        button_frame = tk.Frame(self.root)
+        button_frame.pack(pady=20)
+
+        tk.Button(button_frame, text="Book Room", command=self.book_room, font=("Arial", 14)).grid(row=0, column=0, padx=10)
+        tk.Button(button_frame, text="Clear", command=self.clear_form, font=("Arial", 14)).grid(row=0, column=1, padx=10)
+        tk.Button(button_frame, text="Check Out", command=self.check_out, font=("Arial", 14)).grid(row=0, column=2, padx=10)
+        tk.Button(button_frame, text="Exit", command=self.root.quit, font=("Arial", 14)).grid(row=0, column=3, padx=10)
+
+        # Listbox Frame
+        listbox_frame = tk.Frame(self.root)
+        listbox_frame.pack(pady=20)
+
+        self.booking_list = tk.Listbox(listbox_frame, width=100, height=10, font=("Arial", 12))
+        self.booking_list.pack(side=tk.LEFT, fill=tk.BOTH)
+
+        scrollbar = tk.Scrollbar(listbox_frame, orient="vertical", command=self.booking_list.yview)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        self.booking_list.config(yscrollcommand=scrollbar.set)
+
+    def book_room(self):
+        try:
+            check_in = datetime.strptime(self.check_in_date.get(), '%Y-%m-%d')
+            if check_in < datetime.now():
+                messagebox.showerror("Input Error", "Check-in date must be today or in the future.")
+                return
+
+            if (self.customer_name.get() and self.phone.get() and self.room_type.get() and self.num_nights.get() > 0):
+                available_room = self.get_available_room(check_in)
+                if available_room:
+                    booking_details = (
+                        f"Name: {self.customer_name.get()}, Phone: {self.phone.get()}, "
+                        f"Room Type: {self.room_type.get()}, Room Number: {available_room}, "
+                        f"Nights: {self.num_nights.get()}, Check-in: {self.check_in_date.get()}"
+                    )
+                    self.bookings.append({
+                        'room_number': available_room,
+                        'customer_name': self.customer_name.get(),
+                        'phone': self.phone.get(),
+                        'room_type': self.room_type.get(),
+                        'check_in': check_in,
+                        'nights': self.num_nights.get(),
+                    })
+                    self.booking_list.insert(tk.END, booking_details)
+                    messagebox.showinfo("Booking Successful", "Room booked successfully!")
+                    self.clear_form()
+                else:
+                    messagebox.showerror("Unavailable", "No available rooms for the selected type and dates.")
+            else:
+                messagebox.showwarning("Input Error", "Please fill all fields")
+        except ValueError:
+            messagebox.showerror("Input Error", "Invalid date format. Use YYYY-MM-DD.")
+
+    def get_available_room(self, check_in):
+        selected_type = self.room_type.get()
+        for room_number, room_type in self.rooms.items():
+            if room_type == selected_type and self.is_room_available(room_number, check_in):
+                return room_number
+        return None
+
+    def is_room_available(self, room_number, check_in):
+        for booking in self.bookings:
+            if booking['room_number'] == room_number:
+                if booking['check_in'] <= check_in < (booking['check_in'] + timedelta(days=booking['nights'])):
+                    return False
+        return True
+
+    def check_out(self):
+        if not self.bookings:
+            messagebox.showinfo("Check Out", "No bookings available.")
+            return
+
+        check_out_window = tk.Toplevel(self.root)
+        check_out_window.title("Check Out")
+        check_out_window.geometry("400x300")
+
+        tk.Label(check_out_window, text="Select a booking to check out:", font=("Arial", 14)).pack(pady=10)
+
+        checkout_listbox = tk.Listbox(check_out_window, width=50, height=10, font=("Arial", 12))
+        checkout_listbox.pack(pady=10)
+
+        for booking in self.bookings:
+            details = (f"{booking['customer_name']} - Room: {booking['room_number']}, "
+                       f"Check-in: {booking['check_in'].strftime('%Y-%m-%d')}, Nights: {booking['nights']}")
+            checkout_listbox.insert(tk.END, details)
+
+        def generate_bill():
+            selected_index = checkout_listbox.curselection()
+            if not selected_index:
+                messagebox.showwarning("Selection Error", "Please select a booking to check out.")
+                return
+
+            booking = self.bookings.pop(selected_index[0])
+            room_rate = self.room_rates[booking['room_type']]
+            total_amount = room_rate * booking['nights']
+
+            messagebox.showinfo("Bill", (
+                f"Customer: {booking['customer_name']}\n"
+                f"Phone: {booking['phone']}\n"
+                f"Room: {booking['room_number']} ({booking['room_type']})\n"
+                f"Nights: {booking['nights']}\n"
+                f"Rate per Night: ${room_rate}\n"
+                f"Total Amount: ${total_amount}\n"
+                f"Check-out Successful!"
+            ))
+
+            self.refresh_booking_list()
+
+        tk.Button(check_out_window, text="Generate Bill", command=generate_bill, font=("Arial", 14)).pack(pady=10)
+
+    def refresh_booking_list(self):
+        self.booking_list.delete(0, tk.END)
+        for booking in self.bookings:
+            booking_details = (
+                f"Name: {booking['customer_name']}, Phone: {booking['phone']}, "
+                f"Room Type: {booking['room_type']}, Room Number: {booking['room_number']}, "
+                f"Nights: {booking['nights']}, Check-in: {booking['check_in'].strftime('%Y-%m-%d')}"
+            )
+            self.booking_list.insert(tk.END, booking_details)
+
+    def clear_form(self):
+        self.customer_name.set("")
+        self.phone.set("")
+        self.room_type.set("")
+        self.num_nights.set(0)
+        self.check_in_date.set("")
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = HotelManagementSystem(root)
+    root.mainloop()
